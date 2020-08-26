@@ -1,0 +1,20 @@
+{
+  "name": "odraw-server",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "HelipengTony",
+  "license": "MIT",
+  "dependencies": {
+    "convert-excel-to-json": "^1.7.0",
+    "cors": "^2.8.5",
+    "crypto": "^1.0.1",
+    "express": "^4.17.1",
+    "express-fileupload": "^1.2.0",
+    "express-jwt": "^6.0.0",
+    "jsonwebtoken": "^8.5.1",
+    "math-random": "^2.0.1",
+    "md5": "^2.3.0",
+    "mongoose": "^5.10.0",
+    "nanoid": "^3.1.12"
+  }
+}
