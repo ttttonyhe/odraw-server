@@ -5,5 +5,9 @@ module.exports = {
     drawStatus: {
         type: Boolean,
         default: false
+    },
+    cateKey: {
+        default: '',
+        type: String
     }
 }

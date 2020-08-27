@@ -4,5 +4,9 @@ module.exports = {
     schoolName: String,
     projectName: String,
     projectCate: String,
-    drawNumber: Number
+    drawNumber: String,
+    drawViewStatus: {
+        default: false,
+        type: Boolean
+    }
 }

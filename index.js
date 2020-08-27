@@ -14,6 +14,7 @@ const jwt = require('jsonwebtoken')
 const unique = require("./utils/unique");
 const draw = require("./utils/draw");
 const encrypt = require("./utils/hmac");
+const jsonToExcel = require("./utils/json2excel");
 
 /* 配置 MongoDB 连接 */
 // Schemas
@@ -51,6 +52,8 @@ app.use(cors())
 app.use(express.urlencoded({
 	extended: true
 }));
+// 本地文件提供
+app.use('/files', express.static('files'));
 // JWT 密匙
 const JwtSecret = 'xvk1%W532z1S7K/*';
 // 配置 JWT
@@ -75,6 +78,7 @@ app.use(function (err, req, res, next) {
 app.post('/uploadRecords', function (req, res) {
 	if (mongoose.connection) {
 		mongoose.connection.close();
+		mongoose.connection.removeAllListeners();
 	}
 	// 判断是否为管理员账户
 	if (!req.user.admin) {
@@ -97,10 +101,10 @@ app.post('/uploadRecords', function (req, res) {
 
 		// 获取文件
 		let file = req.files.recordsExcel;
-		let filePath = path.dirname(__filename) + '/files/' + file.name;
+		let filePath = path.dirname(__filename) + '/files/upload/' + file.name;
 
 		// 保存文件
-		file.mv(path.dirname(__filename) + '/files/' + file.name, async function (err) {
+		file.mv(path.dirname(__filename) + '/files/upload/' + file.name, async function (err) {
 			if (err) {
 				// 发送错误提示
 				return res.status(500).send(err);
@@ -128,22 +132,19 @@ app.post('/uploadRecords', function (req, res) {
 					// 保存项目数据至数据库
 					await Promise.all(jsonResult["data"].map(async (item) => {
 						try {
-							await Record.findOne()
+							const aRecord = await Record.findOne()
 								.where('projectName', item.projectName)
 								.where('schoolType', item.schoolType)
-								.where('projectCate', item.projectCate)
-								.then(async existItem => {
-									console.log(!existItem);
-									if (!existItem) {
-										// 处理 ID
-										item.ID = nanoid()
-										// 创建 Record
-										let record = new Record(item);
-										await record.save();
-										// 添加当前到集合分类数组
-										combineArray.push(item.projectCate + '||||||||||' + item.schoolType);
-									}
-								})
+								.where('projectCate', item.projectCate);
+							if (aRecord === null) {
+								// 处理 ID
+								item.ID = nanoid()
+								// 创建 Record
+								let record = new Record(item);
+								await record.save();
+								// 添加当前到集合分类数组
+								combineArray.push(item.projectCate + '||||||||||' + item.schoolType);
+							}
 						} catch (err) {
 							return new Error(err);
 						}
@@ -156,30 +157,32 @@ app.post('/uploadRecords', function (req, res) {
 						try {
 							const name = item.split("||||||||||")[0];
 							const type = item.split("||||||||||")[1];
-							await Cate.findOne()
+							const aCate = await Cate.findOne()
 								.where('cateName', name)
-								.where('cateType', type)
-								.then(async existItem => {
-									console.log(!existItem);
-									if (!existItem) {
-										// 创建 Record
-										let cate = new Cate({
-											ID: nanoid(),
-											cateName: name,
-											cateType: type
-										});
-										await cate.save();
-									}
-								})
+								.where('cateType', type);
+							if (aCate === null) {
+								// 创建 Cate
+								let cate = new Cate({
+									ID: nanoid(),
+									cateName: name,
+									cateType: type
+								});
+								await cate.save();
+							}
 						} catch (err) {
-							return new Error(err);
+							throw Error(err);
 						}
 					}))
 
-					// 发送最终结果
-					res.status(200).end('Records Data Saved');
+					res.status(200).send({
+						code: 104,
+						msg: "successfully imported",
+					})
 				} catch (err) {
-					res.status(500).end(err);
+					res.status(500).send({
+						code: 105,
+						msg: "import error",
+					})
 				}
 			}
 		});
@@ -194,6 +197,7 @@ app.post('/uploadRecords', function (req, res) {
 app.post('/uploadUsers', function (req, res) {
 	if (mongoose.connection) {
 		mongoose.connection.close();
+		mongoose.connection.removeAllListeners();
 	}
 	// 判断是否为管理员账户
 	if (!req.user.admin) {
@@ -216,10 +220,10 @@ app.post('/uploadUsers', function (req, res) {
 
 		// 获取文件
 		let file = req.files.usersExcel;
-		let filePath = path.dirname(__filename) + '/files/' + file.name;
+		let filePath = path.dirname(__filename) + '/files/upload/' + file.name;
 
 		// 保存文件
-		file.mv(path.dirname(__filename) + '/files/' + file.name, async function (err) {
+		file.mv(path.dirname(__filename) + '/files/upload/' + file.name, async function (err) {
 			if (err) {
 				// 发送错误提示
 				return res.status(500).send(err);
@@ -234,33 +238,35 @@ app.post('/uploadUsers', function (req, res) {
 						},
 						sheets: ['data']
 					});
-
-					// 保存项目数据至数据库
+					// 保存用户数据至数据库
 					await Promise.all(jsonResult["data"].map(async (item) => {
 						try {
-							await User.findOne()
-								.where('userName', item.userName)
-								.then(async existItem => {
-									console.log(!existItem);
-									if (!existItem) {
-										// 创建 User
-										let user = new User({
-											ID: nanoid(),
-											userName: item.userName,
-											userPwd: encrypt(encrypt(item.userPwd.toString(), item.userName) + encrypt(item.userPwd.toString(), item.userName), item.userName)
-										});
-										await user.save();
-									}
-								})
+							const aUser = await User.findOne()
+								.where('userName', item.userName);
+							if (aUser === null) {
+								// 创建 User
+								let user = new User({
+									ID: nanoid(),
+									userName: item.userName,
+									userPwd: encrypt(encrypt(item.userPwd.toString(), item.userName) + encrypt(item.userPwd.toString(), item.userName), item.userName)
+								});
+								console.log(user);
+								await user.save();
+							}
 						} catch (err) {
-							return new Error(err);
+							console.log(err);
 						}
 					}))
 
-					// 发送最终结果
-					res.status(200).end('User Data Saved');
+					res.status(200).send({
+						code: 104,
+						msg: "successfully imported",
+					})
 				} catch (err) {
-					res.status(500).end(err);
+					res.status(500).send({
+						code: 105,
+						msg: err,
+					})
 				}
 			}
 		});
@@ -275,6 +281,7 @@ app.post('/uploadUsers', function (req, res) {
 app.post('/userLogin', function (req, res) {
 	if (mongoose.connection) {
 		mongoose.connection.close();
+		mongoose.connection.removeAllListeners();
 	}
 	mongoose.connect('mongodb://127.0.0.1/odraw', mongooseOptions);
 	const db = mongoose.connection;
@@ -344,6 +351,7 @@ app.post('/userLogin', function (req, res) {
 app.post('/drawRecordsByCate', function (req, res) {
 	if (mongoose.connection) {
 		mongoose.connection.close();
+		mongoose.connection.removeAllListeners();
 	}
 	// 判断是否为管理员账户
 	if (!req.user.admin) {
@@ -362,30 +370,45 @@ app.post('/drawRecordsByCate', function (req, res) {
 	db.once('open', async function () {
 		if (req.body.type && req.body.name) {
 			try {
-				// 获取全部当前分类参与项目
-				const records = await Record.find()
-					.where('projectCate', req.body.name)
-					.where('schoolType', req.body.type);
-				// 获取一个长度为当前分类项目总数内容为 1 到 当前分类项目总数 的数组(A)
-				let drawNumberArray = draw.drawNumberArray(records.length);
-				// 遍历当前分类全部项目
-				await Promise.all(records.map(async item => {
-					// 数组(A)长度范围内生成一个随机整数
-					let randIndex = Math.floor((draw.randomNumber() * drawNumberArray.length));
-					// 获取数组(A)中下标为当前随机整数的值
-					let drawNumber = drawNumberArray[randIndex];
-					// 删除该值
-					drawNumberArray.splice(randIndex, 1);
-					// 更新当前项目 drawNumber 字段
-					await Record.findByIdAndUpdate(item._id, {
-						drawNumber: drawNumber
+				// 获取当前分类
+				const aCate = await Cate.findOne()
+					.where('cateName', req.body.name)
+					.where('cateType', req.body.type);
+				if (aCate !== null && aCate.cateKey) {
+					// 获取全部当前分类参与项目
+					const records = await Record.find()
+						.where('projectCate', req.body.name)
+						.where('schoolType', req.body.type);
+					// 获取一个长度为当前分类项目总数内容为 1 到 当前分类项目总数 的数组(A)
+					let drawNumberArray = draw.drawNumberArray(records.length);
+					// 遍历当前分类全部项目
+					await Promise.all(records.map(async item => {
+						// 数组(A)长度范围内生成一个随机整数
+						let randIndex = Math.floor((draw.randomNumber() * drawNumberArray.length));
+						// 获取数组(A)中下标为当前随机整数的值
+						let drawNumber = drawNumberArray[randIndex];
+						// 删除该值
+						drawNumberArray.splice(randIndex, 1);
+						// 更新当前项目 drawNumber 字段
+						await Record.findByIdAndUpdate(item._id, {
+							drawNumber: aCate.cateKey + ' ' + drawNumber
+						})
+					}))
+					// 更新当前分类抽签状态
+					await Cate.findByIdAndUpdate(aCate._id, {
+						"drawStatus": true
 					})
-				}))
-				// 完成抽签
-				res.status(200).send({
-					code: 104,
-					msg: "successfully drew"
-				})
+					// 完成抽签
+					res.status(200).send({
+						code: 104,
+						msg: "successfully drew"
+					})
+				} else {
+					res.status(500).send({
+						code: 106,
+						msg: "no such cate or cate key is not set"
+					})
+				}
 			} catch (err) {
 				res.status(500).send({
 					code: 103,
@@ -401,65 +424,18 @@ app.post('/drawRecordsByCate', function (req, res) {
 	});
 });
 
-/* 
-	通过项目分类获得项目
-	@param {string} name
-	@param {string} type
-*/
-app.get('/getRecordsByCate', function (req, res) {
-	if (mongoose.connection) {
-		mongoose.connection.close();
-	}
-	mongoose.connect('mongodb://127.0.0.1/odraw', mongooseOptions);
-	const db = mongoose.connection;
-	// 连接数据库错误
-	db.on('error', function () {
-		res.status(500).send({
-			code: 101,
-			msg: 'Error connecting to database'
-		})
-	});
-	// 已连接数据库
-	db.once('open', async function () {
-		if (req.query.type && req.query.name) {
-			try {
-				// 获取全部当前分类参与项目
-				const records = await Record.find()
-					.where('projectCate', req.query.name)
-					.where('schoolType', req.query.type)
-					.select('-_id -__v')
-					.sort('drawNumber')
-				res.status(200).send({
-					code: 105,
-					msg: "successfully queried",
-					data: records
-				})
-			} catch (err) {
-				res.status(500).send({
-					code: 106,
-					msg: "server error"
-				})
-			}
-		} else {
-			res.status(400).send({
-				code: 107,
-				msg: "invalid params"
-			})
-		}
-	});
-});
 
 /*
 	通过学校名称和类型获得项目
 	@param {string} name
-	@param {string} type
 */
 app.get('/getRecordsBySchool', function (req, res) {
 	if (mongoose.connection) {
 		mongoose.connection.close();
+		mongoose.connection.removeAllListeners();
 	}
 	// 当前学校用户仅可获取本校的数据
-	if (!req.user._id || (req.user.name !== req.query.name)) {
+	if ((!req.user._id || (req.user.name !== req.query.name)) && !req.user.admin) {
 		return res.sendStatus(401)
 	}
 	mongoose.connect('mongodb://127.0.0.1/odraw', mongooseOptions);
@@ -473,13 +449,13 @@ app.get('/getRecordsBySchool', function (req, res) {
 	});
 	// 已连接数据库
 	db.once('open', async function () {
-		if (req.query.type && req.query.name) {
+		if (req.query.name) {
 			try {
 				// 获取全部当前分类参与项目
 				const records = await Record.find()
 					.where('schoolName', req.query.name)
-					.where('schoolType', req.query.type)
 					.select('-_id -__v')
+					.sort('drawNumber')
 				res.status(200).send({
 					code: 105,
 					msg: "successfully queried",
@@ -510,6 +486,7 @@ app.get('/getRecordsBySchool', function (req, res) {
 app.post('/userModify', function (req, res) {
 	if (mongoose.connection) {
 		mongoose.connection.close();
+		mongoose.connection.removeAllListeners();
 	}
 	// 当前用户仅可修改自身数据
 	console.log('body', req.body.username);
@@ -546,7 +523,7 @@ app.post('/userModify', function (req, res) {
 					}
 					// 更新当前用户密码
 					await User.findByIdAndUpdate(aUser._id, {
-						userPwd: encrypt(encrypt(newPwd, name) + encrypt(newPwd, name), name)
+						"userPwd": encrypt(encrypt(newPwd, name) + encrypt(newPwd, name), name)
 					})
 					res.status(200).send({
 						code: 104,
@@ -555,8 +532,254 @@ app.post('/userModify', function (req, res) {
 				} else {
 					// 不存在当前用户
 					res.status(400).send({
-						code: 102,
+						code: 105,
 						msg: "invalid password or username"
+					})
+				}
+			} catch (err) {
+				res.status(500).send({
+					code: 103,
+					msg: "server error"
+				})
+			}
+		} else {
+			res.status(400).send({
+				code: 102,
+				msg: "invalid params"
+			})
+		}
+	});
+});
+
+
+/* 
+	通过项目分类设置项目分类 Key
+	@param {string} name
+	@param {string} type
+	@param {string} key
+*/
+app.post('/setCateKey', function (req, res) {
+	if (mongoose.connection) {
+		mongoose.connection.close();
+		mongoose.connection.removeAllListeners();
+	}
+	// 判断是否为管理员账户
+	if (!req.user.admin) {
+		return res.sendStatus(401)
+	}
+	mongoose.connect('mongodb://127.0.0.1/odraw', mongooseOptions);
+	const db = mongoose.connection;
+	// 连接数据库错误
+	db.on('error', function () {
+		res.status(500).send({
+			code: 101,
+			msg: 'Error connecting to database'
+		})
+	});
+	// 已连接数据库
+	db.once('open', async function () {
+		if (req.body.type && req.body.name && req.body.key) {
+			try {
+				// 获取一个当前分类
+				const aCate = await Cate.findOne()
+					.where('cateName', req.body.name)
+					.where('cateType', req.body.type);
+				if (aCate !== null) {
+					console.log(req.body.key);
+					console.log(aCate);
+					// 更新当前分类 Key
+					await Cate.findByIdAndUpdate(aCate._id, {
+						"cateKey": req.body.key.toString()
+					})
+					res.status(200).send({
+						code: 104,
+						msg: "successfully updated cate key"
+					})
+				} else {
+					res.status(500).send({
+						code: 105,
+						msg: "no such cate"
+					})
+				}
+			} catch (err) {
+				res.status(500).send({
+					code: 103,
+					msg: "server error"
+				})
+			}
+		} else {
+			res.status(400).send({
+				code: 102,
+				msg: "invalid params"
+			})
+		}
+	});
+});
+
+
+/* 
+	通过学校名称、类型、项目名设置项目抽签状态
+	@param {string} school
+	@param {string} cate
+	@param {string} project
+	@param {string} type
+*/
+app.post('/viewProjectDraw', function (req, res) {
+	if (mongoose.connection) {
+		mongoose.connection.close();
+		mongoose.connection.removeAllListeners();
+	}
+	// 当前学校用户仅可设置本校的项目
+	if ((!req.user._id || (req.user.name !== req.body.school)) && !req.user.admin) {
+		return res.sendStatus(401)
+	}
+	mongoose.connect('mongodb://127.0.0.1/odraw', mongooseOptions);
+	const db = mongoose.connection;
+	// 连接数据库错误
+	db.on('error', function () {
+		res.status(500).send({
+			code: 101,
+			msg: 'Error connecting to database'
+		})
+	});
+	// 已连接数据库
+	db.once('open', async function () {
+		if (req.body.type && req.body.cate && req.body.school && req.body.project) {
+			try {
+				// 获取一个当前项目
+				const aRecord = await Record.findOne()
+					.where('projectName', req.body.project)
+					.where('projectCate', req.body.cate)
+					.where('schoolType', req.body.type)
+					.where('schoolName', req.body.school)
+				if (aRecord !== null && aRecord.drawNumber) {
+					// 更新当前项目状态
+					await Record.findByIdAndUpdate(aRecord._id, {
+						"drawViewStatus": true
+					})
+					res.status(200).send({
+						code: 104,
+						draw: aRecord.drawNumber,
+						msg: "successfully viewed a draw"
+					})
+				} else {
+					res.status(200).send({
+						code: 105,
+						msg: "no such project or drawing has stopped"
+					})
+				}
+			} catch (err) {
+				res.status(500).send({
+					code: 103,
+					msg: "server error"
+				})
+			}
+		} else {
+			res.status(400).send({
+				code: 102,
+				msg: "invalid params"
+			})
+		}
+	});
+});
+
+
+
+/*
+	直接获取全部分类
+*/
+app.get('/getAllCates', function (req, res) {
+	if (mongoose.connection) {
+		mongoose.connection.close();
+		mongoose.connection.removeAllListeners();
+	}
+	// 当前管理员可获取数据
+	if (!req.user.admin) {
+		return res.sendStatus(401)
+	}
+	mongoose.connect('mongodb://127.0.0.1/odraw', mongooseOptions);
+	const db = mongoose.connection;
+	// 连接数据库错误
+	db.on('error', function () {
+		res.status(500).send({
+			code: 101,
+			msg: 'Error connecting to database'
+		})
+	});
+	// 已连接数据库
+	db.once('open', async function () {
+		try {
+			// 获取全部分类
+			const cates = await Cate.find()
+				.select('-_id -__v')
+				.sort("cateType")
+			res.status(200).send({
+				code: 105,
+				msg: "successfully queried",
+				cates: cates
+			})
+		} catch (err) {
+			res.status(500).send({
+				code: 106,
+				msg: "server error"
+			})
+		}
+	});
+});
+
+
+/* 
+	通过项目分类导出为 Excel
+	@param {string} name
+	@param {string} type
+*/
+app.post('/exportExcel', function (req, res) {
+	if (mongoose.connection) {
+		mongoose.connection.close();
+		mongoose.connection.removeAllListeners();
+	}
+	// 判断是否为管理员账户
+	if (!req.user.admin) {
+		return res.sendStatus(401)
+	}
+	mongoose.connect('mongodb://127.0.0.1/odraw', mongooseOptions);
+	const db = mongoose.connection;
+	// 连接数据库错误
+	db.on('error', function () {
+		res.status(500).send({
+			code: 101,
+			msg: 'Error connecting to database'
+		})
+	});
+	// 已连接数据库
+	db.once('open', async function () {
+		if (req.body.type && req.body.name) {
+			try {
+				// 获取全部当前分类参与项目
+				const records = await Record.find()
+					.where('projectCate', req.body.name)
+					.where('schoolType', req.body.type)
+					.select('-_id -__v')
+					.sort('drawNumber')
+				if (records.length) {
+					try {
+						const fileID = jsonToExcel(req.body.name + '-' + req.body.type, records);
+						res.status(200).send({
+							code: 104,
+							msg: "successfully exported",
+							file: fileID
+						})
+					} catch (err) {
+						res.status(500).send({
+							code: 106,
+							msg: "server error"
+						})
+						throw Error(err)
+					}
+				} else {
+					res.status(500).send({
+						code: 107,
+						msg: "no such record"
 					})
 				}
 			} catch (err) {
