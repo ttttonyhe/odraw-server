@@ -26,8 +26,8 @@ const mongooseOptions = {
 	useNewUrlParser: true,
 	useUnifiedTopology: true,
 	useFindAndModify: false,
-	user: 'odrawUser',
-	pass: 'odrawUserPwd'
+	user: 'xxx',
+	pass: 'xxx'
 }
 // 项目 Schema
 var recordsSchema = mongoose.Schema(recordSchema);
@@ -47,7 +47,17 @@ var User = mongoose.model('users', usersSchema);
 // 处理文件上传
 app.use(fileUpload());
 // 处理跨域
-app.use(cors())
+var whitelist = ['https://odraw.vercel.app', "https://tzb2020.ahpu.edu.cn"]
+var corsOptions = {
+	origin: function (origin, callback) {
+		if (whitelist.indexOf(origin) !== -1) {
+			callback(null, true)
+		} else {
+			callback(new Error('Not allowed by CORS'))
+		}
+	}
+}
+app.use(cors(corsOptions))
 // 处理 POST 数据接受
 app.use(express.urlencoded({
 	extended: true
