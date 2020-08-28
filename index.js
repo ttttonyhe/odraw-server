@@ -84,7 +84,7 @@ app.post('/uploadRecords', function (req, res) {
 	if (!req.user.admin) {
 		return res.sendStatus(401)
 	}
-	mongoose.connect('mongodb://127.0.0.1/odraw', mongooseOptions);
+	mongoose.connect('mongodb://localhost:27017/odraw', mongooseOptions);
 	const db = mongoose.connection;
 	// 连接数据库错误
 	db.on('error', function () {
@@ -203,7 +203,7 @@ app.post('/uploadUsers', function (req, res) {
 	if (!req.user.admin) {
 		return res.sendStatus(401)
 	}
-	mongoose.connect('mongodb://127.0.0.1/odraw', mongooseOptions);
+	mongoose.connect('mongodb://localhost:27017/odraw', mongooseOptions);
 	const db = mongoose.connection;
 	// 连接数据库错误
 	db.on('error', function () {
@@ -250,7 +250,6 @@ app.post('/uploadUsers', function (req, res) {
 									userName: item.userName,
 									userPwd: encrypt(encrypt(item.userPwd.toString(), item.userName) + encrypt(item.userPwd.toString(), item.userName), item.userName)
 								});
-								console.log(user);
 								await user.save();
 							}
 						} catch (err) {
@@ -283,7 +282,7 @@ app.post('/userLogin', function (req, res) {
 		mongoose.connection.close();
 		mongoose.connection.removeAllListeners();
 	}
-	mongoose.connect('mongodb://127.0.0.1/odraw', mongooseOptions);
+	mongoose.connect('mongodb://localhost:27017/odraw', mongooseOptions);
 	const db = mongoose.connection;
 	// 连接数据库错误
 	db.on('error', function () {
@@ -357,7 +356,7 @@ app.post('/drawRecordsByCate', function (req, res) {
 	if (!req.user.admin) {
 		return res.sendStatus(401)
 	}
-	mongoose.connect('mongodb://127.0.0.1/odraw', mongooseOptions);
+	mongoose.connect('mongodb://localhost:27017/odraw', mongooseOptions);
 	const db = mongoose.connection;
 	// 连接数据库错误
 	db.on('error', function () {
@@ -438,7 +437,7 @@ app.get('/getRecordsBySchool', function (req, res) {
 	if ((!req.user._id || (req.user.name !== req.query.name)) && !req.user.admin) {
 		return res.sendStatus(401)
 	}
-	mongoose.connect('mongodb://127.0.0.1/odraw', mongooseOptions);
+	mongoose.connect('mongodb://localhost:27017/odraw', mongooseOptions);
 	const db = mongoose.connection;
 	// 连接数据库错误
 	db.on('error', function () {
@@ -489,12 +488,10 @@ app.post('/userModify', function (req, res) {
 		mongoose.connection.removeAllListeners();
 	}
 	// 当前用户仅可修改自身数据
-	console.log('body', req.body.username);
-	console.log('user', req.user.name);
 	if ((!req.user._id || (req.user.name !== req.body.username)) && !req.user.admin) {
 		return res.sendStatus(401)
 	}
-	mongoose.connect('mongodb://127.0.0.1/odraw', mongooseOptions);
+	mongoose.connect('mongodb://localhost:27017/odraw', mongooseOptions);
 	const db = mongoose.connection;
 	// 连接数据库错误
 	db.on('error', function () {
@@ -567,7 +564,7 @@ app.post('/setCateKey', function (req, res) {
 	if (!req.user.admin) {
 		return res.sendStatus(401)
 	}
-	mongoose.connect('mongodb://127.0.0.1/odraw', mongooseOptions);
+	mongoose.connect('mongodb://localhost:27017/odraw', mongooseOptions);
 	const db = mongoose.connection;
 	// 连接数据库错误
 	db.on('error', function () {
@@ -585,8 +582,6 @@ app.post('/setCateKey', function (req, res) {
 					.where('cateName', req.body.name)
 					.where('cateType', req.body.type);
 				if (aCate !== null) {
-					console.log(req.body.key);
-					console.log(aCate);
 					// 更新当前分类 Key
 					await Cate.findByIdAndUpdate(aCate._id, {
 						"cateKey": req.body.key.toString()
@@ -633,7 +628,7 @@ app.post('/viewProjectDraw', function (req, res) {
 	if ((!req.user._id || (req.user.name !== req.body.school)) && !req.user.admin) {
 		return res.sendStatus(401)
 	}
-	mongoose.connect('mongodb://127.0.0.1/odraw', mongooseOptions);
+	mongoose.connect('mongodb://localhost:27017/odraw', mongooseOptions);
 	const db = mongoose.connection;
 	// 连接数据库错误
 	db.on('error', function () {
@@ -697,7 +692,7 @@ app.get('/getAllCates', function (req, res) {
 	if (!req.user.admin) {
 		return res.sendStatus(401)
 	}
-	mongoose.connect('mongodb://127.0.0.1/odraw', mongooseOptions);
+	mongoose.connect('mongodb://localhost:27017/odraw', mongooseOptions);
 	const db = mongoose.connection;
 	// 连接数据库错误
 	db.on('error', function () {
@@ -742,7 +737,7 @@ app.post('/exportExcel', function (req, res) {
 	if (!req.user.admin) {
 		return res.sendStatus(401)
 	}
-	mongoose.connect('mongodb://127.0.0.1/odraw', mongooseOptions);
+	mongoose.connect('mongodb://localhost:27017/odraw', mongooseOptions);
 	const db = mongoose.connection;
 	// 连接数据库错误
 	db.on('error', function () {
