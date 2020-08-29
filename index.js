@@ -21,6 +21,7 @@ const jsonToExcel = require("./utils/json2excel");
 const recordSchema = require("./schema/records");
 const cateSchema = require("./schema/cates");
 const userSchema = require("./schema/users");
+const statusSchema = require("./schema/status");
 // Mongoose 链接配置
 const mongooseOptions = {
 	useNewUrlParser: true,
@@ -41,13 +42,16 @@ var Cate = mongoose.model('cates', catesSchema);
 var usersSchema = mongoose.Schema(userSchema);
 // 用户模型
 var User = mongoose.model('users', usersSchema);
-
+// 状态 Schema
+var statusesSchema = mongoose.Schema(statusSchema);
+// 状态模型
+var Status = mongoose.model('status', statusesSchema);
 
 /* 配置 Express 中间件 */
 // 处理文件上传
 app.use(fileUpload());
 // 处理跨域
-var whitelist = ['https://odraw.vercel.app', "https://tzb2020.ahpu.edu.cn"]
+var whitelist = ['https://odraw.vercel.app', "https://tzb2020.ahpu.edu.cn", "http://localhost:3003"]
 var corsOptions = {
 	origin: function (origin, callback) {
 		if (whitelist.indexOf(origin) !== -1) {
@@ -465,10 +469,14 @@ app.get('/getRecordsBySchool', function (req, res) {
 					.where('schoolName', req.query.name)
 					.select('-_id -__v')
 					.sort('drawNumber')
+				const aStatus = await Status.findOne()
+					.where("ID", "this")
 				res.status(200).send({
 					code: 105,
 					msg: "successfully queried",
-					records: records
+					records: [{
+						viewStatus: aStatus.status
+					}, ...records]
 				})
 			} catch (err) {
 				res.status(500).send({
@@ -718,11 +726,66 @@ app.get('/getAllCates', function (req, res) {
 			const cates = await Cate.find()
 				.select('-_id -__v')
 				.sort("cateType")
+			const aStatus = await Status.findOne()
+				.where("ID", "this");
 			res.status(200).send({
 				code: 105,
 				msg: "successfully queried",
-				cates: cates
+				cates: cates,
+				status: aStatus.status
 			})
+		} catch (err) {
+			res.status(500).send({
+				code: 106,
+				msg: "server error"
+			})
+		}
+	});
+});
+
+
+/*
+	暂停抽签
+*/
+app.post('/stopViewingDraw', function (req, res) {
+	if (mongoose.connection) {
+		mongoose.connection.close();
+		mongoose.connection.removeAllListeners();
+	}
+	// 当前管理员可获取数据
+	if (!req.user.admin) {
+		return res.sendStatus(401)
+	}
+	mongoose.connect('mongodb://localhost:27017/odraw', mongooseOptions);
+	const db = mongoose.connection;
+	// 连接数据库错误
+	db.on('error', function () {
+		res.status(500).send({
+			code: 101,
+			msg: 'Error connecting to database'
+		})
+	});
+	// 已连接数据库
+	db.once('open', async function () {
+		try {
+			// 获取全部分类
+			const aStatus = await Status.findOne()
+				.where("ID", "this")
+			if (aStatus !== null) {
+				await Status.findByIdAndUpdate(aStatus._id, {
+					status: !aStatus.status
+				})
+				res.status(200).send({
+					code: 105,
+					msg: "successfully changed"
+				})
+			} else {
+				res.status(500).send({
+					code: 107,
+					msg: "no such option",
+					cates: cates
+				})
+			}
 		} catch (err) {
 			res.status(500).send({
 				code: 106,
