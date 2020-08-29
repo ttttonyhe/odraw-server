@@ -3,11 +3,11 @@
 
 <br/>
 
-
 ### 主要依赖
 #### 前端
 + React.js (Next.js)
 + Ant Design React
++ https://github.com/HelipengTony/odraw
 
 #### 后端
 + MongoDB
@@ -15,6 +15,7 @@
 + Express-JWT
 + Excel.js
 + Convert-excel-to-json
++ https://github.com/HelipengTony/odraw-server
 
 <br/>
 
