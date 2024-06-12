@@ -33,3 +33,28 @@
 - 项目数据 .xlsx 导入
 - 用户数据 .xlsx 导入
 - 项目数据 .xlsx 导出
+
+<br/>
+
+### 环境变量
+
+- JWT_SECRET
+- MONGODB_USER
+- MONGODB_PASSWD
+- MONGODB_URL
+- ADMIN_NAME
+- DEFAULT_ADMIN_PWD
+
+<br/>
+
+### 数据库填充
+
+#### `status`
+
+确保此条文档存在: `{"ID": "this", "status": false}`
+
+<br/>
+
+#### `users`
+
+确保管理员账户存在: `{"ID" : "admin", "userName" : "...", "userPwd" : "..."}`
